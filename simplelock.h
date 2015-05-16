@@ -27,6 +27,10 @@
 #endif
 
 /* spin lock */
+struct splock {
+	int lock;
+};
+
 #define spin_lock(Q) atom_spinlock(&(Q)->lock)
 #define spin_unlock(Q) atom_spinunlock(&(Q)->lock)
 

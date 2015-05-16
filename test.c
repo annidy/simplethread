@@ -44,6 +44,9 @@ main() {
 			args[i].trigger = NULL;
 		}
 	}
+	for(i=0;i<THREADS;i++) {
+		thread_creat(&(t[i]));
+	}
 	thread_join(t, THREADS);
 	for (i=0;i<THREADS;i++) {
 		thread_event_release(&ev[i]);

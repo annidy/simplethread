@@ -1,18 +1,15 @@
 #ifndef SIMPLE_THREAD_H
 #define SIMPLE_THREAD_H
-
-struct thread {
-	void (*func)(void *);
-	void *ud;
-};
+#include <stdlib.h>
+#include <string.h>
 
 struct thread_event;
 
 static void thread_join(struct thread * threads, int n);
 static void thread_event_create(struct thread_event *ev);
-static void thread_event_release(struct thread_event *ev);
 static void thread_event_trigger(struct thread_event *ev);
 static void thread_event_wait(struct thread_event *ev);
+static void thread_exit(int code);
 
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
 
@@ -24,6 +21,12 @@ static void thread_event_wait(struct thread_event *ev);
 #define INLINE inline
 #endif
 
+struct thread {
+	void (*func)(void *);
+	void *ud;
+	HANDLE handle;
+};
+
 static DWORD INLINE WINAPI
 thread_function(LPVOID lpParam) {
 	struct thread * t = (struct thread *)lpParam;
@@ -32,11 +35,16 @@ thread_function(LPVOID lpParam) {
 }
 
 static INLINE void
+thread_creat(struct thread * thread) {
+	thread->handle = CreateThread(NULL, 0, thread_function, (LPVOID)thread, 0, NULL);
+}
+
+static INLINE void
 thread_join(struct thread * threads, int n) {
 	int i;
 	HANDLE *thread_handle = (HANDLE *)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,n*sizeof(HANDLE));
 	for (i=0;i<n;i++) {
-		thread_handle[i] = CreateThread(NULL, 0, thread_function, (LPVOID)&threads[i], 0, NULL);
+		thread_handle[i] = threads[i].handle;
 		if (thread_handle[i] == NULL) {
 			HeapFree(GetProcessHeap(), 0, thread_handle);
 			return;
@@ -47,6 +55,11 @@ thread_join(struct thread * threads, int n) {
 		CloseHandle(thread_handle[i]);
 	}
 	HeapFree(GetProcessHeap(), 0, thread_handle);
+}
+
+static INLINE void
+thread_exit(int code) {
+	ExitThread(code);
 }
 
 struct thread_event {
@@ -80,6 +93,12 @@ thread_event_wait(struct thread_event *ev) {
 
 #include <pthread.h>
 
+struct thread {
+	void (*func)(void *);
+	void *ud;
+	pthread_t pid;
+};
+
 static inline void *
 thread_function(void * args) {
 	struct thread * t = (struct thread *)args;
@@ -88,18 +107,26 @@ thread_function(void * args) {
 }
 
 static inline void
+thread_creat(struct thread * thread) {
+	pthread_create(&thread->pid, NULL, thread_function, thread);
+}
+
+static inline void
 thread_join(struct thread *threads, int n) {
 	pthread_t pid[n];
 	int i;
 	for (i=0;i<n;i++) {
-		if (pthread_create(&pid[i], NULL, thread_function, &threads[i])) {
-			return;
-		}
+		pid[i] = threads[i].pid;
 	}
 
 	for (i=0;i<n;i++) {
 		pthread_join(pid[i], NULL); 
 	}
+}
+
+static inline void
+thread_exit(int code) {
+	pthread_exit(code);
 }
 
 struct thread_event {
