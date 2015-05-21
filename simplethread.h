@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+struct thread;
 struct thread_event;
 
 static void thread_join(struct thread * threads, int n);
@@ -125,8 +126,10 @@ thread_join(struct thread *threads, int n) {
 }
 
 static inline void
-thread_exit(int code) {
-	pthread_exit(code);
+thread_exit(int code_) {
+	static __thread int code;
+	code = code_;
+	pthread_exit(&code);
 }
 
 struct thread_event {
